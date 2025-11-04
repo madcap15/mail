@@ -1,0 +1,26 @@
+# docker-compose.yml
+# Файл для оркестрации backend и frontend сервисов.
+
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    container_name: mail_service_backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    container_name: mail_service_frontend
+    depends_on:
+      - backend

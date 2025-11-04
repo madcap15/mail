@@ -1,0 +1,5 @@
+# backend/requirements.txt
+# Список зависимостей для Python.
+
+fastapi
+uvicorn
