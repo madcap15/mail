@@ -56,6 +56,7 @@ Before you begin, ensure you have the following installed:
     -   Add new domains.
     -   Delete existing domains.
     All domain operations are performed through the frontend, interacting with the `docker-mailserver` via the FastAPI backend.
+-   **UI/UX Improvements:** Basic styling has been applied to forms, tables, and navigation for a cleaner and more modern look.
 
 ## Next Steps (Planned Features)
 
