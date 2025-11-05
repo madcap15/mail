@@ -33,8 +33,8 @@ function App() {
     fetchUsers(); // Re-fetch users after adding a new one
   };
 
-  const deleteUser = (id) => {
-    setUsers(users.filter((user) => user.id !== id));
+  const deleteUser = () => {
+    fetchUsers(); // Re-fetch users after deleting one
   };
 
   const editUser = (user) => {

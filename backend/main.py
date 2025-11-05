@@ -46,6 +46,19 @@ def get_users():
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}
 
+@app.delete("/users/{email}")
+def delete_user(email: str):
+    """
+    Эндпоинт для удаления пользователя.
+    Отправляет запрос на удаление пользователя в REST API docker-mailserver.
+    """
+    try:
+        response = requests.delete(f"{MAILSERVER_API_URL}/users/{email}")
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        return {"message": f"User {email} deleted successfully"}
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
 @app.get("/domains")
 def get_domains():
     """
