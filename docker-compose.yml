@@ -1,14 +1,13 @@
-# docker-compose.yml
-# Файл для оркестрации backend, frontend и почтового сервера.
+version: '3.8'
 
 services:
+  # Backend service
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      # Добавим общий том для конфигурации почтового сервера
       - ./docker-data/mailconf:/mail/config
     container_name: mail_service_backend
     depends_on:
@@ -16,6 +15,7 @@ services:
     networks:
       - mail-net
 
+  # Frontend service
   frontend:
     build:
       context: ./frontend
@@ -31,12 +31,13 @@ services:
     networks:
       - mail-net
 
+  # Mailserver service (docker-mailserver)
   mailserver:
     image: ghcr.io/docker-mailserver/docker-mailserver:latest
     container_name: mail_server
     hostname: mail.ispmanager.cloudns.ph # <-- ЗАМЕНИТЕ НА ВАШ ДОМЕН
     environment:
-      - SSL_TYPE=self-signed # Для начала используем самоподписанный сертификат
+      - SSL_TYPE=self-signed
       - DMS_DEBUG=0
       - ONE_DIR=1
       - ENABLE_POSTGREY=0
@@ -61,6 +62,52 @@ services:
     networks:
       - mail-net
 
+  # SOGo services
+  sogo:
+    image: salvoxia/sogo:latest
+    container_name: sogo
+    restart: unless-stopped
+    ports:
+      - "8080:80" # Expose SOGo web interface on port 8080
+    volumes:
+      - sogo_data:/srv # Persistent data for SOGo (configs, logs, backups)
+      - ./sogo.conf:/srv/etc/sogo.conf:ro # Mount your custom sogo.conf
+    depends_on:
+      - postgresql
+      - memcached
+    networks:
+      - sogo-network
+
+  postgresql:
+    image: postgres:16-alpine
+    container_name: sogo-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sogo
+      POSTGRES_USER: sogo
+      POSTGRES_PASSWORD: dev_sogo_pass # <<< ПРОСТОЙ ПАРОЛЬ ДЛЯ РАЗРАБОТКИ (ЗАМЕНИТЕ НА НАДЕЖНЫЙ В ПРОДАКШЕНЕ)
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data/pgdata
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro # Initialization script for PostgreSQL
+    networks:
+      - sogo-network
+
+  memcached:
+    image: memcached:alpine
+    container_name: sogo-memcached
+    restart: unless-stopped
+    networks:
+      - sogo-network
+
+# Top-level volumes and networks
+volumes:
+  sogo_data:
+  postgresql_data:
+  # Add any other volumes needed by backend/frontend/mailserver if they were defined at top-level
+
 networks:
   mail-net:
+    driver: bridge
+  sogo-network:
     driver: bridge
