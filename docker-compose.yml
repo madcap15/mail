@@ -1,5 +1,5 @@
 # docker-compose.yml
-# Файл для оркестрации backend и frontend сервисов.
+# Файл для оркестрации backend, frontend и почтового сервера.
 
 version: '3.8'
 
@@ -10,7 +10,11 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      # Добавим общий том для конфигурации почтового сервера
+      - ./docker-data/mailconf:/mail/config
     container_name: mail_service_backend
+    depends_on:
+      - mailserver
 
   frontend:
     build:
@@ -24,3 +28,29 @@ services:
     container_name: mail_service_frontend
     depends_on:
       - backend
+
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    container_name: mail_server
+    hostname: mail.example.com # <-- ЗАМЕНИТЕ НА ВАШ ДОМЕН
+    environment:
+      - SSL_TYPE=self-signed # Для начала используем самоподписанный сертификат
+      - DMS_DEBUG=0
+      - ONE_DIR=1
+      - ENABLE_POSTGREY=0
+      - ENABLE_FAIL2BAN=1
+    volumes:
+      - ./docker-data/maildata:/var/mail
+      - ./docker-data/mailstate:/var/mail-state
+      - ./docker-data/mailconf:/tmp/docker-mailserver/
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "25:25"    # SMTP
+      - "143:143"  # IMAP
+      - "465:465"  # SMTPS
+      - "587:587"  # MSA
+      - "993:993"  # IMAPS
+    cap_add:
+      - NET_ADMIN
+      - SYS_PTRACE
+    restart: always

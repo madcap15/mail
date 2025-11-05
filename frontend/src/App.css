@@ -1,0 +1,13 @@
+/* frontend/src/App.css */
+/* Стили для основного компонента приложения. */
+
+.App {
+  text-align: center;
+  font-family: sans-serif;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
