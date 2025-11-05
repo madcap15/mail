@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './AddUserForm.css'; // Reusing AddUserForm.css for now
 
 const initialFormState = { domain_name: '' };
 
-function AddDomainForm({ addDomain }) {
+function AddDomainForm({ fetchDomains }) { // Changed prop name from addDomain to fetchDomains
   const [domain, setDomain] = useState(initialFormState);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const API_BASE_URL = 'http://localhost:8000'; // URL нашего FastAPI бэкенда
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -20,12 +24,12 @@ function AddDomainForm({ addDomain }) {
     }
 
     try {
-      const response = await fetch('/domains', {
+      const response = await fetch(`${API_BASE_URL}/domains`, { // Use API_BASE_URL
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ domain_name: domain.domain_name }),
+        body: JSON.stringify({ name: domain.domain_name }), // Backend expects 'name' for domain
       });
 
       if (!response.ok) {
@@ -33,12 +37,17 @@ function AddDomainForm({ addDomain }) {
         throw new Error(errorData.error || 'Failed to add domain');
       }
 
-      addDomain(); // Trigger re-fetch in App.js
+      fetchDomains(); // Trigger re-fetch in App.js
       setDomain(initialFormState);
       setError(null);
+      navigate('/domains'); // Redirect to domain list after successful addition
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const handleCancel = () => {
+    navigate('/domains'); // Redirect to domain list on cancel
   };
 
   return (
@@ -53,9 +62,11 @@ function AddDomainForm({ addDomain }) {
             name="domain_name"
             value={domain.domain_name}
             onChange={handleInputChange}
+            required
           />
         </label>
         <button type="submit">Add Domain</button>
+        <button type="button" onClick={handleCancel}>Cancel</button>
       </form>
     </div>
   );

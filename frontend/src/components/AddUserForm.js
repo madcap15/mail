@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './AddUserForm.css';
 
 const initialFormState = { email: '', password: '' };
 
-function AddUserForm({ addUser }) {
+function AddUserForm({ fetchUsers }) { // Changed prop name from addUser to fetchUsers
   const [user, setUser] = useState(initialFormState);
   const [error, setError] = useState(null);
+  const navigate = useNavigate(); // Initialize useNavigate
+
+  const API_BASE_URL = 'http://localhost:8000'; // URL нашего FastAPI бэкенда
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -20,7 +24,7 @@ function AddUserForm({ addUser }) {
     }
 
     try {
-      const response = await fetch('/users', {
+      const response = await fetch(`${API_BASE_URL}/users`, { // Use API_BASE_URL
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -34,9 +38,10 @@ function AddUserForm({ addUser }) {
       }
 
       // Assuming successful creation, re-fetch users in App.js
-      addUser(); 
+      fetchUsers(); 
       setUser(initialFormState);
       setError(null);
+      navigate('/users'); // Redirect to user list after successful addition
     } catch (err) {
       setError(err.message);
     }
@@ -54,6 +59,7 @@ function AddUserForm({ addUser }) {
             name="email"
             value={user.email}
             onChange={handleInputChange}
+            required
           />
         </label>
         <label>
@@ -63,10 +69,12 @@ function AddUserForm({ addUser }) {
             name="password"
             value={user.password}
             onChange={handleInputChange}
+            required
           />
         </label>
         <button type="submit">Add User</button>
       </form>
+      <button onClick={() => navigate('/users')}>Cancel</button>
     </div>
   );
 }
