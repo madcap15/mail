@@ -3,11 +3,50 @@
 
 .App {
   text-align: center;
-  font-family: sans-serif;
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  background-color: #f4f7f6;
+  min-height: 100vh;
 }
 
 .App-header {
   background-color: #282c34;
   padding: 20px;
   color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.App-header h1 {
+  margin-bottom: 10px;
+}
+
+.App-header p {
+  margin-top: 0;
+  font-size: 1.1em;
+}
+
+.App-header nav button {
+  background-color: #61dafb;
+  color: #282c34;
+  border: none;
+  padding: 10px 20px;
+  margin: 0 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.3s ease;
+}
+
+.App-header nav button:hover {
+  background-color: #21a1f1;
+  color: white;
+}
+
+main {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
