@@ -13,6 +13,8 @@ services:
     container_name: mail_service_backend
     depends_on:
       - mailserver
+    networks:
+      - mail-net
 
   frontend:
     build:
@@ -26,6 +28,8 @@ services:
     container_name: mail_service_frontend
     depends_on:
       - backend
+    networks:
+      - mail-net
 
   mailserver:
     image: ghcr.io/docker-mailserver/docker-mailserver:latest
@@ -54,3 +58,9 @@ services:
       - NET_ADMIN
       - SYS_PTRACE
     restart: always
+    networks:
+      - mail-net
+
+networks:
+  mail-net:
+    driver: bridge
