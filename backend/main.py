@@ -59,6 +59,21 @@ def delete_user(email: str):
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}
 
+@app.put("/users/{email}/password")
+def update_user_password(email: str, new_password: str = Body(..., embed=True)):
+    """
+    Эндпоинт для обновления пароля пользователя.
+    Отправляет запрос на обновление пароля пользователя в REST API docker-mailserver.
+    """
+    try:
+        response = requests.post(f"{MAILSERVER_API_URL}/users/{email}/password", json={
+            "password": new_password
+        })
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        return {"message": f"Password for user {email} updated successfully"}
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
 @app.get("/domains")
 def get_domains():
     """

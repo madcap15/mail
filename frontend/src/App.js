@@ -42,9 +42,9 @@ function App() {
     setCurrentUser({ id: user.id, name: user.name, email: user.email, role: user.role });
   };
 
-  const updateUser = (id, updatedUser) => {
+  const updateUser = () => {
+    fetchUsers(); // Re-fetch users after updating one
     setEditing(false);
-    setUsers(users.map((user) => (user.id === id ? updatedUser : user)));
   };
 
   return (

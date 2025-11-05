@@ -6,25 +6,50 @@ import './AddUserForm.css';
 
 function EditUserForm({ currentUser, updateUser, setEditing }) {
   const [user, setUser] = useState(currentUser);
+  const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setUser(currentUser);
+    setNewPassword(''); // Clear password field on user change
   }, [currentUser]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    setUser({ ...user, [name]: value });
+    if (name === "newPassword") {
+      setNewPassword(value);
+    } else {
+      setUser({ ...user, [name]: value });
+    }
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!user.name || !user.email || !user.role) {
-      setError('All fields are required');
+    if (!newPassword) {
+      setError('New password is required');
       return;
     }
-    updateUser(user.id, user);
-    setError(null);
+
+    try {
+      const response = await fetch(`/users/${user.email}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_password: newPassword }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update password');
+      }
+
+      updateUser(); // Trigger re-fetch in App.js
+      setEditing(false);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -33,33 +58,25 @@ function EditUserForm({ currentUser, updateUser, setEditing }) {
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit}>
         <label>
-          Name:
-          <input
-            type="text"
-            name="name"
-            value={user.name}
-            onChange={handleInputChange}
-          />
-        </label>
-        <label>
           Email:
           <input
             type="email"
             name="email"
             value={user.email}
             onChange={handleInputChange}
+            readOnly
           />
         </label>
         <label>
-          Role:
+          New Password:
           <input
-            type="text"
-            name="role"
-            value={user.role}
+            type="password"
+            name="newPassword"
+            value={newPassword}
             onChange={handleInputChange}
           />
         </label>
-        <button type="submit">Update User</button>
+        <button type="submit">Update Password</button>
         <button onClick={() => setEditing(false)}>Cancel</button>
       </form>
     </div>
