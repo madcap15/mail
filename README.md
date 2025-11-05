@@ -51,6 +51,11 @@ Before you begin, ensure you have the following installed:
 -   **Add User:** New email users can be added through the frontend form, which interacts with the `docker-mailserver` via the FastAPI backend.
 -   **Delete User:** Existing email users can be deleted through the frontend, which interacts with the `docker-mailserver` via the FastAPI backend.
 -   **Update User Password:** Passwords for existing email users can be updated through the frontend, which interacts with the `docker-mailserver` via the FastAPI backend.
+-   **Domain Management:**
+    -   List existing domains.
+    -   Add new domains.
+    -   Delete existing domains.
+    All domain operations are performed through the frontend, interacting with the `docker-mailserver` via the FastAPI backend.
 
 ## Next Steps (Planned Features)
 
