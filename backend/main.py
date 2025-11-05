@@ -1,22 +1,13 @@
 # backend/main.py
 # Основной файл FastAPI приложения.
 
+import requests
 from fastapi import FastAPI
-import subprocess
-import json
 
 # Создание экземпляра FastAPI
 app = FastAPI()
 
-def run_command(command):
-    """
-    Выполняет команду в shell и возвращает ее вывод.
-    """
-    result = subprocess.run(command, capture_output=True, text=True, shell=True)
-    if result.returncode != 0:
-        # В реальном приложении здесь должна быть обработка ошибок
-        return {"error": result.stderr.strip()}
-    return result.stdout.strip()
+MAILSERVER_API_URL = "http://mail_server:9090/api/v1"
 
 @app.get("/")
 def read_root():
@@ -29,24 +20,15 @@ def read_root():
 def get_users():
     """
     Эндпоинт для получения списка пользователей.
-    Выполняет команду в контейнере mail_server для получения списка email-адресов.
+    Получает список email-адресов из REST API docker-mailserver.
     """
-    # Обратите внимание: 'mail_server' - это имя контейнера из docker-compose.yml
-    command = "docker exec mail_server setup.sh email list"
-    output = run_command(command)
-    if "error" in output:
-        return output
-    
-    # Парсим вывод команды
-    lines = output.split('\n')
-    # Первая строка - заголовок, пропускаем ее
-    users = []
-    if len(lines) > 1:
-        for line in lines[1:]:
-            # Ожидаемый формат: user@example.com
-            if line:
-                users.append({"email": line.strip()})
-    return {"users": users}
+    try:
+        response = requests.get(f"{MAILSERVER_API_URL}/users")
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        users = response.json()
+        return {"users": users}
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
 
 @app.get("/domains")
 def get_domains():

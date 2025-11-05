@@ -1,23 +1,28 @@
 // frontend/App.js
 // Основной компонент React-приложения.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import UserTable from './components/UserTable';
 import AddUserForm from './components/AddUserForm';
 import EditUserForm from './components/EditUserForm';
 
-const initialUsers = [
-  { id: 1, name: 'John Doe', email: 'john.doe@example.com', role: 'Admin' },
-  { id: 2, name: 'Jane Smith', email: 'jane.smith@example.com', role: 'User' },
-  { id: 3, name: 'Peter Jones', email: 'peter.jones@example.com', role: 'User' },
-];
-
 function App() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
   const [editing, setEditing] = useState(false);
   const initialFormState = { id: null, name: '', email: '', role: '' };
   const [currentUser, setCurrentUser] = useState(initialFormState);
+
+  useEffect(() => {
+    fetch('/users')
+      .then(response => response.json())
+      .then(data => {
+        if (data.users) {
+          setUsers(data.users.map((user, index) => ({ ...user, id: index + 1, name: user.email.split('@')[0], role: 'User' })));
+        }
+      })
+      .catch(error => console.error('Error fetching users:', error));
+  }, []);
 
   const addUser = (user) => {
     user.id = users.length + 1;
