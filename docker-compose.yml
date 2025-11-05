@@ -1,8 +1,6 @@
 # docker-compose.yml
 # Файл для оркестрации backend, frontend и почтового сервера.
 
-version: '3.8'
-
 services:
   backend:
     build: ./backend
@@ -32,7 +30,7 @@ services:
   mailserver:
     image: ghcr.io/docker-mailserver/docker-mailserver:latest
     container_name: mail_server
-    hostname: mail.example.com # <-- ЗАМЕНИТЕ НА ВАШ ДОМЕН
+    hostname: mail.ispmanager.cloudns.ph # <-- ЗАМЕНИТЕ НА ВАШ ДОМЕН
     environment:
       - SSL_TYPE=self-signed # Для начала используем самоподписанный сертификат
       - DMS_DEBUG=0
@@ -51,7 +49,7 @@ services:
       - "465:465"  # SMTPS
       - "587:587"  # MSA
       - "993:993"  # IMAPS
-      - "9090:9090" # REST API
+      - "9091:9090" # REST API
     cap_add:
       - NET_ADMIN
       - SYS_PTRACE
