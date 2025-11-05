@@ -2,7 +2,7 @@
 # Основной файл FastAPI приложения.
 
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 
 # Создание экземпляра FastAPI
 app = FastAPI()
@@ -15,6 +15,22 @@ def read_root():
     Корневой эндпоинт, возвращает приветственное сообщение.
     """
     return {"message": "Welcome to the Mail Service API"}
+
+@app.post("/users")
+def create_user(email: str = Body(...), password: str = Body(...)):
+    """
+    Эндпоинт для создания нового пользователя.
+    Отправляет запрос на создание пользователя в REST API docker-mailserver.
+    """
+    try:
+        response = requests.post(f"{MAILSERVER_API_URL}/users", json={
+            "username": email,
+            "password": password
+        })
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
 
 @app.get("/users")
 def get_users():

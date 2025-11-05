@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './AddUserForm.css';
 
-const initialFormState = { name: '', email: '', role: '' };
+const initialFormState = { email: '', password: '' };
 
 function AddUserForm({ addUser }) {
   const [user, setUser] = useState(initialFormState);
@@ -12,15 +12,34 @@ function AddUserForm({ addUser }) {
     setUser({ ...user, [name]: value });
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!user.name || !user.email || !user.role) {
-      setError('All fields are required');
+    if (!user.email || !user.password) {
+      setError('Email and password are required');
       return;
     }
-    addUser(user);
-    setUser(initialFormState);
-    setError(null);
+
+    try {
+      const response = await fetch('/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: user.email, password: user.password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add user');
+      }
+
+      // Assuming successful creation, re-fetch users in App.js
+      addUser(); 
+      setUser(initialFormState);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -28,15 +47,6 @@ function AddUserForm({ addUser }) {
       <h2>Add New User</h2>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit}>
-        <label>
-          Name:
-          <input
-            type="text"
-            name="name"
-            value={user.name}
-            onChange={handleInputChange}
-          />
-        </label>
         <label>
           Email:
           <input
@@ -47,11 +57,11 @@ function AddUserForm({ addUser }) {
           />
         </label>
         <label>
-          Role:
+          Password:
           <input
-            type="text"
-            name="role"
-            value={user.role}
+            type="password"
+            name="password"
+            value={user.password}
             onChange={handleInputChange}
           />
         </label>
