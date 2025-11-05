@@ -48,6 +48,7 @@ Before you begin, ensure you have the following installed:
 ## Current Features
 
 -   **User Listing:** The frontend displays a list of email users fetched from the `docker-mailserver` via the FastAPI backend.
+-   **Add User:** New email users can be added through the frontend form, which interacts with the `docker-mailserver` via the FastAPI backend.
 
 ## Next Steps (Planned Features)
 
