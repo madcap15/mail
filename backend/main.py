@@ -77,10 +77,43 @@ def update_user_password(email: str, new_password: str = Body(..., embed=True)):
 @app.get("/domains")
 def get_domains():
     """
-    Эндпоинт для получения списка доменов (заглушка).
-    Возвращает пример списка доменов.
+    Эндпоинт для получения списка доменов.
+    Получает список доменов из REST API docker-mailserver.
     """
-    # Эту часть мы реализуем в следующих шагах
-    return [{"id": 1, "domain_name": "example.com"}, {"id": 2, "domain_name": "mail.org"}]
+    try:
+        response = requests.get(f"{MAILSERVER_API_URL}/domains")
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        domains = response.json()
+        return {"domains": domains}
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+@app.post("/domains")
+def create_domain(domain_name: str = Body(..., embed=True)):
+    """
+    Эндпоинт для создания нового домена.
+    Отправляет запрос на создание домена в REST API docker-mailserver.
+    """
+    try:
+        response = requests.post(f"{MAILSERVER_API_URL}/domains", json={
+            "name": domain_name
+        })
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+@app.delete("/domains/{domain_name}")
+def delete_domain(domain_name: str):
+    """
+    Эндпоинт для удаления домена.
+    Отправляет запрос на удаление домена в REST API docker-mailserver.
+    """
+    try:
+        response = requests.delete(f"{MAILSERVER_API_URL}/domains/{domain_name}")
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        return {"message": f"Domain {domain_name} deleted successfully"}
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
 
 # Для запуска: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

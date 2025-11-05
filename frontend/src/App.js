@@ -6,10 +6,14 @@ import './App.css';
 import UserTable from './components/UserTable';
 import AddUserForm from './components/AddUserForm';
 import EditUserForm from './components/EditUserForm';
+import DomainTable from './components/DomainTable';
+import AddDomainForm from './components/AddDomainForm';
 
 function App() {
   const [users, setUsers] = useState([]);
+  const [domains, setDomains] = useState([]);
   const [editing, setEditing] = useState(false);
+  const [currentView, setCurrentView] = useState('users'); // 'users' or 'domains'
   const initialFormState = { id: null, name: '', email: '', role: '' };
   const [currentUser, setCurrentUser] = useState(initialFormState);
 
@@ -25,9 +29,22 @@ function App() {
     }
   }, []);
 
+  const fetchDomains = useCallback(async () => {
+    try {
+      const response = await fetch('/domains');
+      const data = await response.json();
+      if (data.domains) {
+        setDomains(data.domains);
+      }
+    } catch (error) {
+      console.error('Error fetching domains:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchDomains();
+  }, [fetchUsers, fetchDomains]);
 
   const addUser = () => {
     fetchUsers(); // Re-fetch users after adding a new one
@@ -47,25 +64,59 @@ function App() {
     setEditing(false);
   };
 
+  const addDomain = () => {
+    fetchDomains(); // Re-fetch domains after adding a new one
+  };
+
+  const deleteDomain = async (domainName) => {
+    try {
+      const response = await fetch(`/domains/${domainName}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete domain');
+      }
+
+      fetchDomains(); // Re-fetch domains after deleting one
+    } catch (error) {
+      console.error('Error deleting domain:', error);
+    }
+  };
+
   return (
     <div className="App">
       <header className="App-header">
         <h1>Admin Panel</h1>
         <p>Welcome to the mail service administration panel.</p>
+        <nav>
+          <button onClick={() => setCurrentView('users')}>User Management</button>
+          <button onClick={() => setCurrentView('domains')}>Domain Management</button>
+        </nav>
       </header>
       <main>
-        <div>
-          {editing ? (
-            <EditUserForm
-              setEditing={setEditing}
-              currentUser={currentUser}
-              updateUser={updateUser}
-            />
-          ) : (
-            <AddUserForm addUser={addUser} />
-          )}
-        </div>
-        <UserTable users={users} deleteUser={deleteUser} editUser={editUser} />
+        {currentView === 'users' ? (
+          <>
+            <div>
+              {editing ? (
+                <EditUserForm
+                  setEditing={setEditing}
+                  currentUser={currentUser}
+                  updateUser={updateUser}
+                />
+              ) : (
+                <AddUserForm addUser={addUser} />
+              )}
+            </div>
+            <UserTable users={users} deleteUser={deleteUser} editUser={editUser} />
+          </>
+        ) : (
+          <>
+            <AddDomainForm addDomain={addDomain} />
+            <DomainTable domains={domains} deleteDomain={deleteDomain} />
+          </>
+        )}
       </main>
     </div>
   );
