@@ -22,7 +22,6 @@ services:
   # Backend service
   backend:
     build: ./backend
-    # Port is no longer exposed to the host
     volumes:
       - ./backend:/app
       - ./docker-data/mailconf:/mail/config
@@ -40,7 +39,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    # Port is no longer exposed to the host
     volumes:
       - ./frontend:/app
     container_name: mail_service_frontend
@@ -73,7 +71,14 @@ services:
       - "465:465"  # SMTPS
       - "587:587"  # MSA
       - "993:993"  # IMAPS
-      - "9091:9090" # REST API
+    command: >
+      /bin/bash -c "\\
+        if [ ! -f /tmp/docker-mailserver/postfix-accounts.cf ]; then \\
+          echo \"admin@ispmanager.cloudns.ph|{SSHA512}YOUR_HASHED_PASSWORD\" > /tmp/docker-mailserver/postfix-accounts.cf; \\
+          echo \"admin@ispmanager.cloudns.ph|adminpass\" | /usr/bin/setup email add; \\
+        fi; \\
+        /usr/bin/start-mailserver.sh\\
+      "
     cap_add:
       - NET_ADMIN
       - SYS_PTRACE
@@ -86,7 +91,6 @@ services:
     image: salvoxia/sogo:latest
     container_name: sogo
     restart: unless-stopped
-    # Port is no longer exposed to the host
     volumes:
       - sogo_data:/srv
       - ./sogo.conf:/srv/etc/sogo.conf:ro
