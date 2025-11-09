@@ -1,11 +1,28 @@
 version: '3.8'
 
 services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:latest
+    container_name: nginx_reverse_proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+      - sogo
+    networks:
+      - mail-net
+      - sogo-network
+    restart: always
+
   # Backend service
   backend:
     build: ./backend
-    ports:
-      - "8000:8000"
+    # Port is no longer exposed to the host
     volumes:
       - ./backend:/app
       - ./docker-data/mailconf:/mail/config
@@ -16,14 +33,14 @@ services:
       - mailserver
     networks:
       - mail-net
+    restart: always
 
   # Frontend service
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+    # Port is no longer exposed to the host
     volumes:
       - ./frontend:/app
     container_name: mail_service_frontend
@@ -31,6 +48,7 @@ services:
       - backend
     networks:
       - mail-net
+    restart: always
 
   # Mailserver service (docker-mailserver)
   mailserver:
@@ -68,11 +86,10 @@ services:
     image: salvoxia/sogo:latest
     container_name: sogo
     restart: unless-stopped
-    ports:
-      - "8080:80" # Expose SOGo web interface on port 8080
+    # Port is no longer exposed to the host
     volumes:
-      - sogo_data:/srv # Persistent data for SOGo (configs, logs, backups)
-      - ./sogo.conf:/srv/etc/sogo.conf:ro # Mount your custom sogo.conf
+      - sogo_data:/srv
+      - ./sogo.conf:/srv/etc/sogo.conf:ro
     depends_on:
       - postgresql
       - memcached
@@ -86,11 +103,11 @@ services:
     environment:
       POSTGRES_DB: sogo
       POSTGRES_USER: sogo
-      POSTGRES_PASSWORD: dev_sogo_pass # <<< ПРОСТОЙ ПАРОЛЬ ДЛЯ РАЗРАБОТКИ (ЗАМЕНИТЕ НА НАДЕЖНЫЙ В ПРОДАКШЕНЕ)
+      POSTGRES_PASSWORD: dev_sogo_pass
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgresql_data:/var/lib/postgresql/data/pgdata
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro # Initialization script for PostgreSQL
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - sogo-network
 
@@ -101,11 +118,9 @@ services:
     networks:
       - sogo-network
 
-# Top-level volumes and networks
 volumes:
   sogo_data:
   postgresql_data:
-  # Add any other volumes needed by backend/frontend/mailserver if they were defined at top-level
 
 networks:
   mail-net:
