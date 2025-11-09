@@ -41,6 +41,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./frontend:/app
+      - /app/node_modules
     container_name: mail_service_frontend
     depends_on:
       - backend
