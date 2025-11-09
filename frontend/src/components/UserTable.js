@@ -1,30 +1,37 @@
 // frontend/src/components/UserTable.js
 // Компонент для отображения таблицы пользователей.
 
-import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
 import './UserTable.css';
 
-const API_BASE_URL = 'http://localhost:8000'; // URL нашего FastAPI бэкенда
+function UserTable({ users, deleteUser, editUser, getAuthHeaders }) {
 
-function UserTable({ users, deleteUser, editUser, fetchUsers }) { // Добавляем fetchUsers в пропсы
-  const navigate = useNavigate();
+  const handleDeleteClick = async (email) => {
+    if (window.confirm(`Are you sure you want to delete ${email}?`)) {
+      try {
+        const response = await fetch(`/users/${email}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
 
-  // Удаляем локальную функцию handleDelete, так как она теперь в App.js
-  // Используем переданную функцию deleteUser
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to delete user');
+        }
 
-  // Функция для перехода к редактированию пользователя
-  const handleEditClick = (user) => {
-    editUser(user); // Передаем пользователя в App.js для установки состояния editingUser
-    // navigate(`/users/edit/${user.email}`); // Навигация будет обработана в App.js
+        deleteUser(); // Re-fetch users in App.js
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        // Optionally, display an error message to the user
+      }
+    }
   };
 
-  // Если users пуст, можно показать сообщение или заглушку
   if (!users || users.length === 0) {
     return (
       <div>
         <h2>User Management</h2>
-        <p>No users found. <Link to="/users/add">Add a new user</Link>.</p>
+        <p>No users found.</p>
       </div>
     );
   }
@@ -35,27 +42,26 @@ function UserTable({ users, deleteUser, editUser, fetchUsers }) { // Добав�
       <table>
         <thead>
           <tr>
-            <th>Email</th> {/* Предполагаем, что email является уникальным идентификатором */}
-            <th>Name</th> {/* Добавим поле Name, если оно есть в данных */}
-            <th>Role</th> {/* Добавим поле Role, если оно есть в данных */}
+            <th>Email</th>
+            <th>Name</th>
+            <th>Role</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {users.map((user) => (
-            <tr key={user.email}> {/* Используем email как ключ */}
+            <tr key={user.id}>
               <td>{user.email}</td>
-              <td>{user.name || 'N/A'}</td> {/* Отображаем Name, если есть */}
-              <td>{user.role || 'N/A'}</td> {/* Отображаем Role, если есть */}
+              <td>{user.name}</td>
+              <td>{user.role}</td>
               <td>
-                <button onClick={() => handleEditClick(user)}>Edit</button>
-                <button onClick={() => deleteUser(user.email)}>Delete</button>
+                <button onClick={() => editUser(user)}>Edit Password</button>
+                <button onClick={() => handleDeleteClick(user.email)}>Delete</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <Link to="/users/add">Add New User</Link>
     </div>
   );
 }

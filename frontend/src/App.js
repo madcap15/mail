@@ -8,6 +8,7 @@ import AddUserForm from './components/AddUserForm';
 import EditUserForm from './components/EditUserForm';
 import DomainTable from './components/DomainTable';
 import AddDomainForm from './components/AddDomainForm';
+import Login from './components/Login';
 
 function App() {
   const [users, setUsers] = useState([]);
@@ -16,22 +17,49 @@ function App() {
   const [currentView, setCurrentView] = useState('users'); // 'users' or 'domains'
   const initialFormState = { id: null, name: '', email: '', role: '' };
   const [currentUser, setCurrentUser] = useState(initialFormState);
+  const [token, setToken] = useState(localStorage.getItem('token'));
+
+  const getAuthHeaders = useCallback(() => {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+  }, [token]);
 
   const fetchUsers = useCallback(async () => {
+    if (!token) return;
     try {
-      const response = await fetch('/users');
+      const response = await fetch('/users', { headers: getAuthHeaders() });
+      if (response.status === 401) {
+        setToken(null);
+        localStorage.removeItem('token');
+        return;
+      }
       const data = await response.json();
       if (data.users) {
-        setUsers(data.users.map((user, index) => ({ ...user, id: index + 1, name: user.email.split('@')[0], role: 'User' })));
+        setUsers(
+          data.users.map((user, index) => ({
+            ...user,
+            id: index + 1,
+            name: user.email.split('@')[0],
+            role: 'User',
+          }))
+        );
       }
     } catch (error) {
       console.error('Error fetching users:', error);
     }
-  }, []);
+  }, [token, getAuthHeaders]);
 
   const fetchDomains = useCallback(async () => {
+    if (!token) return;
     try {
-      const response = await fetch('/domains');
+      const response = await fetch('/domains', { headers: getAuthHeaders() });
+       if (response.status === 401) {
+        setToken(null);
+        localStorage.removeItem('token');
+        return;
+      }
       const data = await response.json();
       if (data.domains) {
         setDomains(data.domains);
@@ -39,12 +67,14 @@ function App() {
     } catch (error) {
       console.error('Error fetching domains:', error);
     }
-  }, []);
+  }, [token, getAuthHeaders]);
 
   useEffect(() => {
-    fetchUsers();
-    fetchDomains();
-  }, [fetchUsers, fetchDomains]);
+    if (token) {
+      fetchUsers();
+      fetchDomains();
+    }
+  }, [token, fetchUsers, fetchDomains]);
 
   const addUser = () => {
     fetchUsers(); // Re-fetch users after adding a new one
@@ -56,7 +86,12 @@ function App() {
 
   const editUser = (user) => {
     setEditing(true);
-    setCurrentUser({ id: user.id, name: user.name, email: user.email, role: user.role });
+    setCurrentUser({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
   };
 
   const updateUser = () => {
@@ -72,6 +107,7 @@ function App() {
     try {
       const response = await fetch(`/domains/${domainName}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -85,6 +121,15 @@ function App() {
     }
   };
 
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.removeItem('token');
+  };
+
+  if (!token) {
+    return <Login setToken={setToken} />;
+  }
+
   return (
     <div className="App">
       <header className="App-header">
@@ -93,6 +138,7 @@ function App() {
         <nav>
           <button onClick={() => setCurrentView('users')}>User Management</button>
           <button onClick={() => setCurrentView('domains')}>Domain Management</button>
+          <button onClick={handleLogout} className="logout-button">Logout</button>
         </nav>
       </header>
       <main>
@@ -104,16 +150,17 @@ function App() {
                   setEditing={setEditing}
                   currentUser={currentUser}
                   updateUser={updateUser}
+                  getAuthHeaders={getAuthHeaders}
                 />
               ) : (
-                <AddUserForm addUser={addUser} />
+                <AddUserForm addUser={addUser} getAuthHeaders={getAuthHeaders} />
               )}
             </div>
-            <UserTable users={users} deleteUser={deleteUser} editUser={editUser} />
+            <UserTable users={users} deleteUser={deleteUser} editUser={editUser} getAuthHeaders={getAuthHeaders} />
           </>
         ) : (
           <>
-            <AddDomainForm addDomain={addDomain} />
+            <AddDomainForm addDomain={addDomain} getAuthHeaders={getAuthHeaders} />
             <DomainTable domains={domains} deleteDomain={deleteDomain} />
           </>
         )}

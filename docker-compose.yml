@@ -10,6 +10,8 @@ services:
       - ./backend:/app
       - ./docker-data/mailconf:/mail/config
     container_name: mail_service_backend
+    env_file:
+      - .env
     depends_on:
       - mailserver
     networks:

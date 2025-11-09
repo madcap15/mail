@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './AddUserForm.css'; // Reusing AddUserForm.css for now
 
 const initialFormState = { domain_name: '' };
 
-function AddDomainForm({ fetchDomains }) { // Changed prop name from addDomain to fetchDomains
+function AddDomainForm({ addDomain, getAuthHeaders }) {
   const [domain, setDomain] = useState(initialFormState);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
-
-  const API_BASE_URL = 'http://localhost:8000'; // URL нашего FastAPI бэкенда
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -24,12 +20,10 @@ function AddDomainForm({ fetchDomains }) { // Changed prop name from addDomain t
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/domains`, { // Use API_BASE_URL
+      const response = await fetch(`/domains`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: domain.domain_name }), // Backend expects 'name' for domain
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ domain_name: domain.domain_name }),
       });
 
       if (!response.ok) {
@@ -37,21 +31,16 @@ function AddDomainForm({ fetchDomains }) { // Changed prop name from addDomain t
         throw new Error(errorData.error || 'Failed to add domain');
       }
 
-      fetchDomains(); // Trigger re-fetch in App.js
+      addDomain();
       setDomain(initialFormState);
       setError(null);
-      navigate('/domains'); // Redirect to domain list after successful addition
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const handleCancel = () => {
-    navigate('/domains'); // Redirect to domain list on cancel
-  };
-
   return (
-    <div>
+    <div className="form-container">
       <h2>Add New Domain</h2>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit}>
@@ -66,7 +55,6 @@ function AddDomainForm({ fetchDomains }) { // Changed prop name from addDomain t
           />
         </label>
         <button type="submit">Add Domain</button>
-        <button type="button" onClick={handleCancel}>Cancel</button>
       </form>
     </div>
   );

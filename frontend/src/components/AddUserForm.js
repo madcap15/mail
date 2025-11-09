@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './AddUserForm.css';
 
 const initialFormState = { email: '', password: '' };
 
-function AddUserForm({ fetchUsers }) { // Changed prop name from addUser to fetchUsers
+function AddUserForm({ addUser, getAuthHeaders }) {
   const [user, setUser] = useState(initialFormState);
   const [error, setError] = useState(null);
-  const navigate = useNavigate(); // Initialize useNavigate
-
-  const API_BASE_URL = 'http://localhost:8000'; // URL нашего FastAPI бэкенда
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -24,11 +20,9 @@ function AddUserForm({ fetchUsers }) { // Changed prop name from addUser to fetc
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users`, { // Use API_BASE_URL
+      const response = await fetch(`/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ email: user.email, password: user.password }),
       });
 
@@ -37,18 +31,16 @@ function AddUserForm({ fetchUsers }) { // Changed prop name from addUser to fetc
         throw new Error(errorData.error || 'Failed to add user');
       }
 
-      // Assuming successful creation, re-fetch users in App.js
-      fetchUsers(); 
+      addUser();
       setUser(initialFormState);
       setError(null);
-      navigate('/users'); // Redirect to user list after successful addition
     } catch (err) {
       setError(err.message);
     }
   };
 
   return (
-    <div>
+    <div className="form-container">
       <h2>Add New User</h2>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit}>
@@ -74,7 +66,6 @@ function AddUserForm({ fetchUsers }) { // Changed prop name from addUser to fetc
         </label>
         <button type="submit">Add User</button>
       </form>
-      <button onClick={() => navigate('/users')}>Cancel</button>
     </div>
   );
 }
