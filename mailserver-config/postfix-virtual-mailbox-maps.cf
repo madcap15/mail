@@ -1,0 +1,5 @@
+user = sogo
+password = dev_sogo_pass
+dbname = sogo
+hosts = sogo-postgresql
+query = SELECT 1 FROM users WHERE email='%s'

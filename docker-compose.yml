@@ -7,12 +7,10 @@ services:
     container_name: nginx_reverse_proxy
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - backend
-      - frontend
       - sogo
     networks:
       - mail-net
@@ -22,29 +20,18 @@ services:
   # Backend service
   backend:
     build: ./backend
-    volumes:
-      - ./backend:/app
-      - ./docker-data/mailconf:/mail/config
     container_name: mail_service_backend
-    env_file:
-      - .env
-    environment:
-      - POSTFIX_REST_SERVER_API_KEY=${POSTFIX_REST_SERVER_API_KEY}
+    env_file: .env
     depends_on:
-      mailserver:
-        condition: service_healthy
+      - postgresql
     networks:
       - mail-net
+      - sogo-network # Needs access to postgresql
     restart: always
 
   # Frontend service
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    build: ./frontend
     container_name: mail_service_frontend
     depends_on:
       - backend
@@ -56,57 +43,41 @@ services:
   mailserver:
     image: ghcr.io/docker-mailserver/docker-mailserver:latest
     container_name: mail_server
-    hostname: mail.ispmanager.cloudns.ph # <-- ЗАМЕНИТЕ НА ВАШ ДОМЕН
+    hostname: ${SOGO_MAIL_DOMAIN}
     environment:
       - SSL_TYPE=self-signed
       - DMS_DEBUG=0
       - ONE_DIR=1
       - ENABLE_POSTGREY=0
       - ENABLE_FAIL2BAN=1
-      - POSTFIX_REST_SERVER=true
-      - POSTFIX_REST_SERVER_API_KEY=${POSTFIX_REST_SERVER_API_KEY}
+      # --- DATABASE CONFIGURATION ---
+      - ACCOUNT_PROVISIONER=DB
+      - DB_DRIVER=pgsql
+      - DB_HOST=sogo-postgresql
+      - DB_PORT=5432
+      - DB_USER=sogo
+      - DB_PASS=dev_sogo_pass
+      - DB_NAME=sogo
     volumes:
       - ./docker-data/maildata:/var/mail
       - ./docker-data/mailstate:/var/mail-state
       - ./docker-data/mailconf:/tmp/docker-mailserver/
-      - /etc/localtime:/etc/localtime:ro
+      - ./mailserver-config:/tmp/docker-mailserver/postfix-book.cf:ro
     ports:
       - "25:25"
       - "143:143"
       - "465:465"
       - "587:587"
       - "993:993"
-      - "9091:9090" # Temporarily expose for healthcheck/initializer
     cap_add:
       - NET_ADMIN
       - SYS_PTRACE
     restart: always
     networks:
       - mail-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090/api/v1/users", "-H", "X-API-Key: ${POSTFIX_REST_SERVER_API_KEY}"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  # Initializer service
-  initializer:
-    build:
-      context: .
-      dockerfile: -
-      args:
-        IMAGE: curlimages/curl:latest
-    container_name: mail_service_initializer
-    volumes:
-      - ./initializer:/initializer
-    command: /initializer/init.sh
-    env_file:
-      - .env
+      - sogo-network # Needs access to postgresql
     depends_on:
-      mailserver:
-        condition: service_healthy
-    networks:
-      - mail-net
+      - postgresql
 
   # SOGo services
   sogo:
@@ -114,14 +85,15 @@ services:
     container_name: sogo
     restart: unless-stopped
     volumes:
-      - sogo_data:/srv
       - ./sogo.conf:/srv/etc/sogo.conf:ro
     depends_on:
       - postgresql
-      - memcached
+      - mailserver
     networks:
       - sogo-network
+      - mail-net
 
+  # PostgreSQL Database
   postgresql:
     image: postgres:16-alpine
     container_name: sogo-postgresql
@@ -132,21 +104,13 @@ services:
       POSTGRES_PASSWORD: dev_sogo_pass
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - postgresql_data:/var/lib/postgresql/data/pgdata
+      - ./docker-data/postgresql:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - sogo-network
 
-  memcached:
-    image: memcached:alpine
-    container_name: sogo-memcached
-    restart: unless-stopped
-    networks:
-      - sogo-network
-
 volumes:
-  sogo_data:
-  postgresql_data:
+  sogo_data: # This is now unused but kept for reference
 
 networks:
   mail-net:
