@@ -1,10 +1,12 @@
 # backend/main.py
-# Основной файл FastAPI приложения.
 import os
 import requests
 from datetime import timedelta
+from typing import List
+
 from fastapi import FastAPI, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel, EmailStr
 
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -12,45 +14,48 @@ from auth import (
     get_current_user,
 )
 
-# Создание экземпляра FastAPI
+# --- Pydantic Models ---
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+class PasswordUpdate(BaseModel):
+    new_password: str
+
+class DomainCreate(BaseModel):
+    domain_name: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserInfo(BaseModel):
+    email: EmailStr
+    # Add other user fields if needed in the future
+
+class DomainInfo(BaseModel):
+    name: str
+
+# --- FastAPI App Initialization ---
 app = FastAPI()
 
+# --- Configuration ---
 MAILSERVER_API_URL = "http://mail_server:9090/api/v1"
+MAILSERVER_API_KEY = os.environ.get("POSTFIX_REST_SERVER_API_KEY")
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-MAILSERVER_API_KEY = os.environ.get("MAILSERVER_API_KEY")
 
-# Headers for mailserver API
-api_headers = {"X-Api-Key": MAILSERVER_API_KEY}
-
-
-def handle_mailserver_request(method, url, **kwargs):
-    """Helper function to handle requests to the mailserver API."""
-    try:
-        response = requests.request(method, url, headers=api_headers, **kwargs)
-        response.raise_for_status()
-        # For DELETE requests with 204 No Content, response.json() will fail
-        if response.status_code == 204:
-            return {"success": True}
-        return response.json()
-    except requests.exceptions.HTTPError as e:
-        # Try to get more specific error from mailserver response
-        try:
-            error_details = e.response.json()
-        except ValueError:
-            error_details = e.response.text
+# --- Helper Functions ---
+def get_mailserver_auth_headers():
+    if not MAILSERVER_API_KEY:
         raise HTTPException(
-            status_code=e.response.status_code, detail=error_details
-        ) from e
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+            status_code=500, detail="Mailserver API key is not configured"
+        )
+    return {"Authorization": f"Bearer {MAILSERVER_API_KEY}"}
 
-
-@app.post("/token")
+# --- Authentication Endpoint ---
+@app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    """
-    Provides an access token for the admin user.
-    """
     if not (form_data.username == ADMIN_USER and form_data.password == ADMIN_PASSWORD):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -63,95 +68,111 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-
-@app.get("/")
-def read_root():
-    """
-    Корневой эндпоинт, возвращает приветственное сообщение.
-    """
-    return {"message": "Welcome to the Mail Service API"}
-
+# --- User Management Endpoints ---
+@app.get("/users", response_model=List[UserInfo])
+def get_users(
+    current_user: dict = Depends(get_current_user),
+    auth_headers: dict = Depends(get_mailserver_auth_headers),
+):
+    try:
+        response = requests.get(f"{MAILSERVER_API_URL}/users", headers=auth_headers)
+        response.raise_for_status()
+        # The API returns a list of strings, we convert it to a list of UserInfo objects
+        return [{"email": email} for email in response.json()]
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/users")
 def create_user(
-    email: str = Body(...),
-    password: str = Body(...),
+    user: UserCreate,
     current_user: dict = Depends(get_current_user),
+    auth_headers: dict = Depends(get_mailserver_auth_headers),
 ):
-    """
-    Эндпоинт для создания нового пользователя.
-    """
-    return handle_mailserver_request(
-        "POST",
-        f"{MAILSERVER_API_URL}/users",
-        json={"username": email, "password": password},
-    )
-
-
-@app.get("/users")
-def get_users(current_user: dict = Depends(get_current_user)):
-    """
-    Эндпоинт для получения списка пользователей.
-    """
-    users_data = handle_mailserver_request("GET", f"{MAILSERVER_API_URL}/users")
-    return {"users": users_data}
-
+    try:
+        response = requests.post(
+            f"{MAILSERVER_API_URL}/users",
+            json={"username": user.email, "password": user.password},
+            headers=auth_headers,
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/users/{email}")
-def delete_user(email: str, current_user: dict = Depends(get_current_user)):
-    """
-    Эндпоинт для удаления пользователя.
-    """
-    handle_mailserver_request("DELETE", f"{MAILSERVER_API_URL}/users/{email}")
-    return {"message": f"User {email} deleted successfully"}
-
+def delete_user(
+    email: str,
+    current_user: dict = Depends(get_current_user),
+    auth_headers: dict = Depends(get_mailserver_auth_headers),
+):
+    try:
+        response = requests.delete(
+            f"{MAILSERVER_API_URL}/users/{email}", headers=auth_headers
+        )
+        response.raise_for_status()
+        return {"message": f"User {email} deleted successfully"}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/users/{email}/password")
 def update_user_password(
     email: str,
-    new_password: str = Body(...),
+    password_data: PasswordUpdate,
     current_user: dict = Depends(get_current_user),
+    auth_headers: dict = Depends(get_mailserver_auth_headers),
 ):
-    """
-    Эндпоинт для обновления пароля пользователя.
-    """
-    handle_mailserver_request(
-        "POST",
-        f"{MAILSERVER_API_URL}/users/{email}/password",
-        json={"password": new_password},
-    )
-    return {"message": f"Password for user {email} updated successfully"}
+    try:
+        response = requests.post(
+            f"{MAILSERVER_API_URL}/users/{email}/password",
+            json={"password": password_data.new_password},
+            headers=auth_headers,
+        )
+        response.raise_for_status()
+        return {"message": f"Password for user {email} updated successfully"}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/domains")
-def get_domains(current_user: dict = Depends(get_current_user)):
-    """
-    Эндпоинт для получения списка доменов.
-    """
-    domains_data = handle_mailserver_request("GET", f"{MAILSERVER_API_URL}/domains")
-    return {"domains": domains_data}
-
+# --- Domain Management Endpoints ---
+@app.get("/domains", response_model=List[DomainInfo])
+def get_domains(
+    current_user: dict = Depends(get_current_user),
+    auth_headers: dict = Depends(get_mailserver_auth_headers),
+):
+    try:
+        response = requests.get(f"{MAILSERVER_API_URL}/domains", headers=auth_headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/domains")
 def create_domain(
-    domain_name: str = Body(...),
+    domain: DomainCreate,
     current_user: dict = Depends(get_current_user),
+    auth_headers: dict = Depends(get_mailserver_auth_headers),
 ):
-    """
-    Эндпоинт для создания нового домена.
-    """
-    return handle_mailserver_request(
-        "POST", f"{MAILSERVER_API_URL}/domains", json={"name": domain_name}
-    )
-
+    try:
+        response = requests.post(
+            f"{MAILSERVER_API_URL}/domains",
+            json={"name": domain.domain_name},
+            headers=auth_headers,
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/domains/{domain_name}")
-def delete_domain(domain_name: str, current_user: dict = Depends(get_current_user)):
-    """
-    Эндпоинт для удаления домена.
-    """
-    handle_mailserver_request("DELETE", f"{MAILSERVER_API_URL}/domains/{domain_name}")
-    return {"message": f"Domain {domain_name} deleted successfully"}
-
-
-# Для запуска: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+def delete_domain(
+    domain_name: str,
+    current_user: dict = Depends(get_current_user),
+    auth_headers: dict = Depends(get_mailserver_auth_headers),
+):
+    try:
+        response = requests.delete(
+            f"{MAILSERVER_API_URL}/domains/{domain_name}", headers=auth_headers
+        )
+        response.raise_for_status()
+        return {"message": f"Domain {domain_name} deleted successfully"}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))

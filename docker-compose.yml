@@ -29,6 +29,8 @@ services:
     env_file:
       - .env
     environment:
+      - POSTFIX_REST_SERVER_API_KEY=${POSTFIX_REST_SERVER_API_KEY}
+    environment:
       - MAILSERVER_API_KEY=${MAILSERVER_API_KEY}
     depends_on:
       - mailserver
@@ -65,6 +67,7 @@ services:
       - POSTFIX_REST_SERVER=true
       - POSTFIX_REST_SERVER_INITIAL_USER=admin@ispmanager.cloudns.ph
       - POSTFIX_REST_SERVER_INITIAL_PASSWORD=adminpass
+      - POSTFIX_REST_SERVER_API_KEY=${POSTFIX_REST_SERVER_API_KEY}
     restart: always
     networks:
       - mail-net
