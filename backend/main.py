@@ -18,6 +18,32 @@ app = FastAPI()
 MAILSERVER_API_URL = "http://mail_server:9090/api/v1"
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+MAILSERVER_API_KEY = os.environ.get("MAILSERVER_API_KEY")
+
+# Headers for mailserver API
+api_headers = {"X-Api-Key": MAILSERVER_API_KEY}
+
+
+def handle_mailserver_request(method, url, **kwargs):
+    """Helper function to handle requests to the mailserver API."""
+    try:
+        response = requests.request(method, url, headers=api_headers, **kwargs)
+        response.raise_for_status()
+        # For DELETE requests with 204 No Content, response.json() will fail
+        if response.status_code == 204:
+            return {"success": True}
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        # Try to get more specific error from mailserver response
+        try:
+            error_details = e.response.json()
+        except ValueError:
+            error_details = e.response.text
+        raise HTTPException(
+            status_code=e.response.status_code, detail=error_details
+        ) from e
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/token")
@@ -54,45 +80,30 @@ def create_user(
 ):
     """
     Эндпоинт для создания нового пользователя.
-    Отправляет запрос на создание пользователя в REST API docker-mailserver.
     """
-    try:
-        response = requests.post(
-            f"{MAILSERVER_API_URL}/users", json={"username": email, "password": password}
-        )
-        response.raise_for_status()  # Проверка на ошибки HTTP
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    return handle_mailserver_request(
+        "POST",
+        f"{MAILSERVER_API_URL}/users",
+        json={"username": email, "password": password},
+    )
 
 
 @app.get("/users")
 def get_users(current_user: dict = Depends(get_current_user)):
     """
     Эндпоинт для получения списка пользователей.
-    Получает список email-адресов из REST API docker-mailserver.
     """
-    try:
-        response = requests.get(f"{MAILSERVER_API_URL}/users")
-        response.raise_for_status()  # Проверка на ошибки HTTP
-        users = response.json()
-        return {"users": users}
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    users_data = handle_mailserver_request("GET", f"{MAILSERVER_API_URL}/users")
+    return {"users": users_data}
 
 
 @app.delete("/users/{email}")
 def delete_user(email: str, current_user: dict = Depends(get_current_user)):
     """
     Эндпоинт для удаления пользователя.
-    Отправляет запрос на удаление пользователя в REST API docker-mailserver.
     """
-    try:
-        response = requests.delete(f"{MAILSERVER_API_URL}/users/{email}")
-        response.raise_for_status()  # Проверка на ошибки HTTP
-        return {"message": f"User {email} deleted successfully"}
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    handle_mailserver_request("DELETE", f"{MAILSERVER_API_URL}/users/{email}")
+    return {"message": f"User {email} deleted successfully"}
 
 
 @app.put("/users/{email}/password")
@@ -103,32 +114,22 @@ def update_user_password(
 ):
     """
     Эндпоинт для обновления пароля пользователя.
-    Отправляет запрос на обновление пароля пользователя в REST API docker-mailserver.
     """
-    try:
-        response = requests.post(
-            f"{MAILSERVER_API_URL}/users/{email}/password",
-            json={"password": new_password},
-        )
-        response.raise_for_status()  # Проверка на ошибки HTTP
-        return {"message": f"Password for user {email} updated successfully"}
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    handle_mailserver_request(
+        "POST",
+        f"{MAILSERVER_API_URL}/users/{email}/password",
+        json={"password": new_password},
+    )
+    return {"message": f"Password for user {email} updated successfully"}
 
 
 @app.get("/domains")
 def get_domains(current_user: dict = Depends(get_current_user)):
     """
     Эндпоинт для получения списка доменов.
-    Получает список доменов из REST API docker-mailserver.
     """
-    try:
-        response = requests.get(f"{MAILSERVER_API_URL}/domains")
-        response.raise_for_status()  # Проверка на ошибки HTTP
-        domains = response.json()
-        return {"domains": domains}
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    domains_data = handle_mailserver_request("GET", f"{MAILSERVER_API_URL}/domains")
+    return {"domains": domains_data}
 
 
 @app.post("/domains")
@@ -138,30 +139,19 @@ def create_domain(
 ):
     """
     Эндпоинт для создания нового домена.
-    Отправляет запрос на создание домена в REST API docker-mailserver.
     """
-    try:
-        response = requests.post(
-            f"{MAILSERVER_API_URL}/domains", json={"name": domain_name}
-        )
-        response.raise_for_status()  # Проверка на ошибки HTTP
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    return handle_mailserver_request(
+        "POST", f"{MAILSERVER_API_URL}/domains", json={"name": domain_name}
+    )
 
 
 @app.delete("/domains/{domain_name}")
 def delete_domain(domain_name: str, current_user: dict = Depends(get_current_user)):
     """
     Эндпоинт для удаления домена.
-    Отправляет запрос на удаление домена в REST API docker-mailserver.
     """
-    try:
-        response = requests.delete(f"{MAILSERVER_API_URL}/domains/{domain_name}")
-        response.raise_for_status()  # Проверка на ошибки HTTP
-        return {"message": f"Domain {domain_name} deleted successfully"}
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+    handle_mailserver_request("DELETE", f"{MAILSERVER_API_URL}/domains/{domain_name}")
+    return {"message": f"Domain {domain_name} deleted successfully"}
 
 
 # Для запуска: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

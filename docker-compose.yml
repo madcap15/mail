@@ -28,6 +28,8 @@ services:
     container_name: mail_service_backend
     env_file:
       - .env
+    environment:
+      - MAILSERVER_API_KEY=${MAILSERVER_API_KEY}
     depends_on:
       - mailserver
     networks:
@@ -61,28 +63,8 @@ services:
       - ENABLE_POSTGREY=0
       - ENABLE_FAIL2BAN=1
       - POSTFIX_REST_SERVER=true
-    volumes:
-      - ./docker-data/maildata:/var/mail
-      - ./docker-data/mailstate:/var/mail-state
-      - ./docker-data/mailconf:/tmp/docker-mailserver/
-      - /etc/localtime:/etc/localtime:ro
-    ports:
-      - "25:25"    # SMTP
-      - "143:143"  # IMAP
-      - "465:465"  # SMTPS
-      - "587:587"  # MSA
-      - "993:993"  # IMAPS
-    command: >
-      /bin/bash -c "\\
-        if [ ! -f /tmp/docker-mailserver/postfix-accounts.cf ]; then \\
-          echo \"admin@ispmanager.cloudns.ph|{SSHA512}YOUR_HASHED_PASSWORD\" > /tmp/docker-mailserver/postfix-accounts.cf; \\
-          echo \"admin@ispmanager.cloudns.ph|adminpass\" | /usr/bin/setup email add; \\
-        fi; \\
-        /usr/bin/start-mailserver.sh\\
-      "
-    cap_add:
-      - NET_ADMIN
-      - SYS_PTRACE
+      - POSTFIX_REST_SERVER_INITIAL_USER=admin@ispmanager.cloudns.ph
+      - POSTFIX_REST_SERVER_INITIAL_PASSWORD=adminpass
     restart: always
     networks:
       - mail-net
