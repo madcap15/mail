@@ -51,7 +51,7 @@ def get_mailserver_auth_headers():
         raise HTTPException(
             status_code=500, detail="Mailserver API key is not configured"
         )
-    return {"Authorization": f"Bearer {MAILSERVER_API_KEY}"}
+    return {"X-API-Key": MAILSERVER_API_KEY}
 
 # --- Authentication Endpoint ---
 @app.post("/token", response_model=Token)
