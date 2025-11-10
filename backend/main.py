@@ -45,6 +45,9 @@ MAILSERVER_API_KEY = os.environ.get("POSTFIX_REST_SERVER_API_KEY")
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
+# --- Debugging ---
+print(f"DEBUG: Mailserver API Key read from env: {MAILSERVER_API_KEY}")
+
 # --- Helper Functions ---
 def get_mailserver_auth_headers():
     if not MAILSERVER_API_KEY:
