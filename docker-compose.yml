@@ -30,8 +30,6 @@ services:
       - .env
     environment:
       - POSTFIX_REST_SERVER_API_KEY=${POSTFIX_REST_SERVER_API_KEY}
-    environment:
-      - MAILSERVER_API_KEY=${MAILSERVER_API_KEY}
     depends_on:
       - mailserver
     networks:
