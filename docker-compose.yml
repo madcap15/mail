@@ -31,7 +31,8 @@ services:
     environment:
       - POSTFIX_REST_SERVER_API_KEY=${POSTFIX_REST_SERVER_API_KEY}
     depends_on:
-      - mailserver
+      mailserver:
+        condition: service_healthy
     networks:
       - mail-net
     restart: always
@@ -63,10 +64,47 @@ services:
       - ENABLE_POSTGREY=0
       - ENABLE_FAIL2BAN=1
       - POSTFIX_REST_SERVER=true
-      - POSTFIX_REST_SERVER_INITIAL_USER=admin@ispmanager.cloudns.ph
-      - POSTFIX_REST_SERVER_INITIAL_PASSWORD=adminpass
       - POSTFIX_REST_SERVER_API_KEY=${POSTFIX_REST_SERVER_API_KEY}
+    volumes:
+      - ./docker-data/maildata:/var/mail
+      - ./docker-data/mailstate:/var/mail-state
+      - ./docker-data/mailconf:/tmp/docker-mailserver/
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "25:25"
+      - "143:143"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+      - "9091:9090" # Temporarily expose for healthcheck/initializer
+    cap_add:
+      - NET_ADMIN
+      - SYS_PTRACE
     restart: always
+    networks:
+      - mail-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/api/v1/users", "-H", "X-API-Key: ${POSTFIX_REST_SERVER_API_KEY}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Initializer service
+  initializer:
+    build:
+      context: .
+      dockerfile: -
+      args:
+        IMAGE: curlimages/curl:latest
+    container_name: mail_service_initializer
+    volumes:
+      - ./initializer:/initializer
+    command: /initializer/init.sh
+    env_file:
+      - .env
+    depends_on:
+      mailserver:
+        condition: service_healthy
     networks:
       - mail-net
 
