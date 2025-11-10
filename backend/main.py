@@ -109,7 +109,7 @@ def delete_user(email: str, current_user: dict = Depends(get_current_user)):
 @app.put("/users/{email}/password")
 def update_user_password(
     email: str,
-    new_password: str = Body(..., embed=True),
+    new_password: str = Body(...),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -134,7 +134,7 @@ def get_domains(current_user: dict = Depends(get_current_user)):
 
 @app.post("/domains")
 def create_domain(
-    domain_name: str = Body(..., embed=True),
+    domain_name: str = Body(...),
     current_user: dict = Depends(get_current_user),
 ):
     """
