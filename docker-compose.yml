@@ -7,6 +7,7 @@ services:
     container_name: nginx_reverse_proxy
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -26,8 +27,13 @@ services:
       - postgresql
     networks:
       - mail-net
-      - sogo-network # Needs access to postgresql
+      - sogo-network
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Frontend service
   frontend:
@@ -38,6 +44,11 @@ services:
     networks:
       - mail-net
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Mailserver service (docker-mailserver)
   mailserver:
@@ -55,9 +66,9 @@ services:
       - DB_DRIVER=pgsql
       - DB_HOST=sogo-postgresql
       - DB_PORT=5432
-      - DB_USER=sogo
-      - DB_PASS=dev_sogo_pass
-      - DB_NAME=sogo
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
     volumes:
       - ./docker-data/maildata:/var/mail
       - ./docker-data/mailstate:/var/mail-state
@@ -75,9 +86,14 @@ services:
     restart: always
     networks:
       - mail-net
-      - sogo-network # Needs access to postgresql
+      - sogo-network
     depends_on:
       - postgresql
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/auth/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # SOGo services
   sogo:
@@ -92,6 +108,11 @@ services:
     networks:
       - sogo-network
       - mail-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:20000/sogo"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # PostgreSQL Database
   postgresql:
@@ -99,18 +120,23 @@ services:
     container_name: sogo-postgresql
     restart: unless-stopped
     environment:
-      POSTGRES_DB: sogo
-      POSTGRES_USER: sogo
-      POSTGRES_PASSWORD: dev_sogo_pass
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - ./docker-data/postgresql:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - sogo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  sogo_data: # This is now unused but kept for reference
+  # Persistent volumes are managed by docker-compose via bind mounts
 
 networks:
   mail-net:
