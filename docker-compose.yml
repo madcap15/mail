@@ -135,9 +135,6 @@ services:
       timeout: 10s
       retries: 3
 
-volumes:
-  # Persistent volumes are managed by docker-compose via bind mounts
-
 networks:
   mail-net:
     driver: bridge
