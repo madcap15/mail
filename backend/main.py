@@ -2,15 +2,14 @@
 import os
 import time
 from datetime import timedelta
-
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, TIMESTAMP, func
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
-
 from auth import create_access_token, get_current_user, verify_password, get_password_hash
 
 # --- Database Setup ---
@@ -48,6 +47,7 @@ class DomainCreate(BaseModel):
     domain_name: str
 
 class DomainInfo(BaseModel):
+    id: int
     name: str
     class Config:
         orm_mode = True
@@ -67,6 +67,15 @@ class Token(BaseModel):
 
 # --- FastAPI App Initialization ---
 app = FastAPI()
+
+# --- CORS Middleware ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow requests from any origin
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 def get_db():
     db = SessionLocal()
@@ -102,7 +111,7 @@ def on_startup():
             db.add(domain)
             db.commit()
             db.refresh(domain)
-
+        
         initial_user_email = f"admin@{initial_domain_name}"
         user = db.query(User).filter(User.email == initial_user_email).first()
         if not user:
@@ -130,7 +139,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 def get_domains(current_user: dict = Depends(get_current_user), db: SessionLocal = Depends(get_db)):
     return db.query(Domain).all()
 
-@app.post("/domains")
+@app.post("/domains", response_model=DomainInfo)
 def create_domain(domain: DomainCreate, current_user: dict = Depends(get_current_user), db: SessionLocal = Depends(get_db)):
     db_domain = Domain(name=domain.domain_name)
     try:
@@ -142,11 +151,24 @@ def create_domain(domain: DomainCreate, current_user: dict = Depends(get_current
         db.rollback()
         raise HTTPException(status_code=400, detail="Domain already exists")
 
+@app.delete("/domains/{domain_name}")
+def delete_domain(domain_name: str, current_user: dict = Depends(get_current_user), db: SessionLocal = Depends(get_db)):
+    domain = db.query(Domain).filter(Domain.name == domain_name).first()
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    try:
+        db.delete(domain)
+        db.commit()
+        return {"message": f"Domain '{domain_name}' deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/users", response_model=list[UserInfo])
 def get_users(current_user: dict = Depends(get_current_user), db: SessionLocal = Depends(get_db)):
     return db.query(User).all()
 
-@app.post("/users")
+@app.post("/users", response_model=UserInfo)
 def create_user(user: UserCreate, current_user: dict = Depends(get_current_user), db: SessionLocal = Depends(get_db)):
     domain_name = user.email.split('@')[1]
     domain = db.query(Domain).filter(Domain.name == domain_name).first()
@@ -164,3 +186,20 @@ def create_user(user: UserCreate, current_user: dict = Depends(get_current_user)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="User with this email already exists")
+
+@app.delete("/users/{email}")
+def delete_user(email: str, current_user: dict = Depends(get_current_user), db: SessionLocal = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        db.delete(user)
+        db.commit()
+        return {"message": f"User '{email}' deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
